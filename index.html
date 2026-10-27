@@ -1,0 +1,1259 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kronkels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chakra+Petch:wght@400;600&display=swap">
+<style>
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+/* Layout: arcade cabinet — arena links, scorebord en opties rechts; op telefoon gestapeld met stuurknoppen onder de arena */
+:root{
+  --bg:#11121b; --panel:#1a1c2a; --line:#2c2f45; --fg:#ecebf4; --dim:#8d8fab; --accent:#ffc23d;
+  --good:#5be08a; --bad:#ff5d6c; --neutral:#6fb6ff;
+  --display:"Bungee","Impact",system-ui,sans-serif;
+  --body:"Chakra Petch",ui-monospace,"Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));}
+.wrap{max-width:1220px;margin:0 auto;padding-block:16px 24px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,5vw,44px);margin:0;letter-spacing:.02em;line-height:1}
+h1 span{color:var(--accent)}
+.status{color:var(--dim);font-size:14px}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:minmax(0,1fr)}}
+.arena{position:relative;width:100%;aspect-ratio:800/560;max-width:100%;background:#0b0c13;border:2px dashed var(--line);border-radius:4px;overflow:hidden;touch-action:none}
+.arena.walls{border:2px solid #ff5d6c}
+.arena canvas{position:absolute;inset:0;width:100%;height:100%}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;pointer-events:none;padding:16px}
+.big{font-family:var(--display);font-size:clamp(40px,10vw,110px);line-height:1;text-shadow:0 4px 0 #0008}
+.sub{font-size:clamp(14px,2.2vw,18px);color:var(--fg);background:#0b0c13cc;padding:4px 10px;border-radius:3px}
+.toasts{position:absolute;left:10px;top:10px;display:flex;flex-direction:column;gap:4px;pointer-events:none;max-width:70%}
+.toast{font-size:13px;background:#0b0c13d9;border-left:3px solid var(--neutral);padding:3px 8px;border-radius:2px}
+.myfx{position:absolute;right:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;pointer-events:none;max-width:60%}
+.myfx span{font-size:12px;font-weight:600;background:#0b0c13d9;border:1px solid var(--line);padding:2px 7px;border-radius:10px}
+aside{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.stack{display:flex;flex-direction:column;gap:8px}
+.players{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.players li{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:8px;align-items:center;font-variant-numeric:tabular-nums}
+.players li .sw{width:14px;height:14px;border-radius:50%}
+.players li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.players li.dead .nm{color:var(--dim);text-decoration:line-through}
+.players li .sc{font-family:var(--display);font-size:16px}
+.empty{color:var(--dim);font-size:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input[type=text]{flex:1;min-width:0;background:#0b0c13;border:1px solid var(--line);color:var(--fg);font:inherit;padding:8px 10px;border-radius:4px}
+button{font:600 14px var(--body);background:var(--accent);color:#1a1300;border:0;padding:9px 14px;border-radius:4px;cursor:pointer}
+button.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.set{display:grid;grid-template-columns:minmax(0,1fr) 5.2em;gap:4px 10px;align-items:center;font-size:14px}
+.set label{grid-column:1/-1;color:var(--fg)}
+select{width:100%;grid-column:1/-1;background:#0b0c13;border:1px solid var(--line);color:var(--fg);font:inherit;padding:7px 8px;border-radius:4px}
+input[type=range]{accent-color:var(--accent);width:100%;margin:0}
+output{font-variant-numeric:tabular-nums;text-align:right;color:var(--fg);white-space:nowrap}
+.gcode{font-family:var(--display);font-size:40px;letter-spacing:.12em;color:var(--accent);line-height:1}
+label.chk{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--fg)}
+details{border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--dim);font-weight:400}
+details[open] summary::after{content:"–"}
+details .stack{margin-top:10px}
+.pill{font-size:11px;font-weight:600;padding:1px 7px;border-radius:9px;background:#0b0c13;color:var(--dim);margin-left:auto;margin-right:8px}
+.pill.on{color:#1a1300;background:var(--accent)}
+.types{display:flex;flex-direction:column;gap:5px;font-size:13px}
+.trow{display:grid;grid-template-columns:minmax(0,1fr) 7.6em;gap:8px;align-items:center}
+.trow label.chk{font-size:13px;min-width:0;white-space:nowrap;overflow:hidden}
+.trow select{padding:3px 4px;font-size:12px}
+.announce{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;pointer-events:none;text-align:center;padding:4% 16px 16px}
+.announce .ag{font-size:clamp(40px,9vw,96px);line-height:1;opacity:.55;filter:drop-shadow(0 0 18px currentColor)}
+.announce .an{font-family:var(--display);font-size:clamp(30px,7vw,80px);line-height:1;letter-spacing:.03em;
+  background:linear-gradient(100deg,#ff6b57,#ffc23d 25%,#4fe0b0 45%,#4cb4ff 65%,#b48cff 82%,#ff7ac8);
+  -webkit-background-clip:text;background-clip:text;color:transparent;opacity:.62;-webkit-text-stroke:1.5px rgba(255,255,255,.35)}
+.announce .aw{font-size:clamp(14px,2.4vw,21px);font-weight:600;background:#0b0c13a6;padding:3px 14px;border-radius:20px;margin-top:6px}
+.announce.go{animation:pop 2s ease-out forwards}
+@keyframes pop{0%{transform:scale(.3) rotate(-6deg);opacity:0}14%{transform:scale(1.14) rotate(2deg);opacity:1}24%{transform:scale(1) rotate(0)}78%{opacity:1}100%{transform:scale(1.06);opacity:0}}
+@media (prefers-reduced-motion:reduce){.announce.go{animation:fade 2s forwards}@keyframes fade{0%,78%{opacity:1}100%{opacity:0}}}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:13px}
+.legend div{display:flex;gap:6px;align-items:center;min-width:0}
+.gl{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;font-size:12px;color:#0b0c13;font-weight:700;flex:none}
+.rings{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--dim)}
+.rings i{display:inline-block;width:12px;height:12px;border-radius:50%;border:3px solid;vertical-align:-1px;margin-right:4px}
+.keys{font-size:13px;color:var(--dim);line-height:1.5}
+kbd{font-family:var(--body);background:#0b0c13;border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;padding:0 5px;color:var(--fg)}
+.touch{display:none;gap:10px}
+.touch button{flex:1;font-family:var(--display);font-size:28px;padding:18px 0;background:var(--panel);color:var(--fg);border:1px solid var(--line);user-select:none;-webkit-user-select:none}
+.touch button.on{background:var(--accent);color:#1a1300}
+@media (pointer:coarse){.touch{display:flex}}
+.stage{display:flex;flex-direction:column;gap:10px}
+.fsscores,.fsexit{display:none}
+.stage:fullscreen,.stage.pseudo-fs{background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+.stage.pseudo-fs{position:fixed;inset:0;z-index:50}
+.stage:fullscreen .arena,.stage.pseudo-fs .arena{width:min(100%, calc((100dvh - 24px) * 800 / 560));border-radius:2px}
+@media (pointer:coarse){.stage:fullscreen .arena,.stage.pseudo-fs .arena{width:min(100%, calc((100dvh - 110px) * 800 / 560))}
+  .stage:fullscreen .touch,.stage.pseudo-fs .touch{width:min(100%, calc((100dvh - 110px) * 800 / 560))}}
+.stage:fullscreen .fsscores,.stage.pseudo-fs .fsscores{display:flex;position:absolute;left:10px;bottom:10px;list-style:none;margin:0;padding:6px 10px;gap:12px;flex-wrap:wrap;
+  background:#0b0c13c0;border-radius:4px;font-variant-numeric:tabular-nums;font-size:14px;pointer-events:none;max-width:75%}
+.fsscores li{display:flex;gap:6px;align-items:center}
+.fsscores li.dead{opacity:.45}
+.fsscores .sw{width:10px;height:10px;border-radius:50%}
+.fsscores b{font-family:var(--display);font-weight:400}
+.stage:fullscreen .fsexit,.stage.pseudo-fs .fsexit{display:block;position:absolute;right:10px;bottom:10px;padding:5px 10px;font-size:13px;background:#0b0c13c0;color:var(--fg);border:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>KRONKEL<span>S</span></h1>
+    <div class="status" id="status">Niet verbonden</div>
+  </header>
+  <div class="main">
+    <div class="stack" style="gap:10px;min-width:0">
+      <div class="stage" id="stage">
+      <div class="arena" id="arena">
+        <canvas id="trail" width="800" height="560"></canvas>
+        <canvas id="heads" width="800" height="560"></canvas>
+        <canvas id="fxc" width="800" height="560"></canvas>
+        <div class="announce" id="announce" hidden></div>
+        <div class="toasts" id="toasts"></div>
+        <div class="myfx" id="myfx"></div>
+        <div class="overlay"><div class="big" id="big"></div><div class="sub" id="sub" hidden></div></div>
+        <ul class="fsscores" id="fsscores"></ul>
+        <button class="fsexit" id="fsexit" aria-label="Volledig scherm sluiten">✕ Sluiten</button>
+      </div>
+      <div class="touch">
+        <button id="tl" aria-label="Links">◀</button>
+        <button id="tr" aria-label="Rechts">▶</button>
+      </div>
+      </div>
+      <div class="row"><button class="ghost" id="fs">⛶ Volledig scherm <kbd>F</kbd></button></div>
+      <div class="stack" id="legendbox" hidden>
+        <div class="lbl">Bonuspellets</div>
+        <div class="rings"><span><i style="border-color:var(--good)"></i>werkt op jezelf</span><span><i style="border-color:var(--bad)"></i>werkt op de anderen</span><span><i style="border-color:var(--neutral)"></i>werkt op iedereen</span><span><i style="border-color:#f2efe6"></i>verrassing</span></div>
+        <div class="legend" id="legend"></div>
+        <div class="legend" id="minelegend" hidden><div><span class="gl" style="background:#2a2c3c;color:#ff5d6c;border:2px solid #ff5d6c">✱</span><span><b>Mijn</b> · niet aanrijden!</span></div></div>
+        <div class="legend" id="balllegend" hidden><div><span class="gl" style="background:radial-gradient(circle at 35% 35%,#fff,#ff9ec4 45%,#c04a7a)"></span><span id="balltext"><b>Stuiterbal</b></span></div></div>
+      </div>
+    </div>
+    <aside>
+      <div class="stack">
+        <div class="lbl">Jouw naam</div>
+        <input type="text" id="name" maxlength="12" placeholder="bijv. Slinger">
+      </div>
+      <div class="stack" id="menu">
+        <div class="lbl">Online spelen</div>
+        <button id="create">Nieuw spel maken</button>
+        <div class="row">
+          <input type="text" id="code" maxlength="5" placeholder="CODE" autocomplete="off" style="text-transform:uppercase;letter-spacing:.2em">
+          <button id="join">Meedoen</button>
+        </div>
+        <button class="ghost" id="local">Lokaal: 2 spelers op 1 toetsenbord</button>
+      </div>
+      <div class="stack" id="codebox" hidden>
+        <div class="lbl">Spelcode</div>
+        <div class="gcode" id="gcode"></div>
+        <div class="row"><button class="ghost" id="copy">Kopieer code</button><button class="ghost" id="leave">Verlaten</button></div>
+        <div class="keys" id="codehint">Geef deze code aan je vrienden. Zij openen hetzelfde bestand en vullen de code in.</div>
+      </div>
+      <div class="stack">
+        <div class="row" style="justify-content:space-between"><span class="lbl">Spelers</span><span class="lbl" id="roundinfo"></span></div>
+        <ul class="players" id="players"></ul>
+      </div>
+      <div class="stack" id="hostbox" hidden>
+        <div class="lbl">Jij bent de host</div>
+        <div class="row">
+          <button id="start">Start spel</button>
+          <button class="ghost" id="stop" hidden>Naar lobby</button>
+          <button class="ghost" id="reset">Scores op 0</button>
+        </div>
+
+        <details open>
+          <summary>Basis</summary>
+          <div class="stack">
+            <div class="set"><label for="rounds">Aantal rondes</label><input type="range" id="rounds" min="1" max="50" step="1"><output id="roundsv"></output></div>
+            <label class="chk"><input type="checkbox" id="inf"> Oneindig doorspelen</label>
+            <div class="set"><label for="speed">Snelheid</label><select id="speed"></select></div>
+            <div class="set"><label for="gaps">Tijd tussen gaten</label><input type="range" id="gaps" min="0.5" max="8" step="0.5"><output id="gapsv"></output></div>
+            <div class="set"><label for="gapw">Grootte van de gaten</label><input type="range" id="gapw" min="8" max="45" step="1"><output id="gapwv"></output></div>
+            <label class="chk"><input type="checkbox" id="wrap"> Schermwrap: door de rand naar de overkant</label>
+            <label class="chk"><input type="checkbox" id="selfl"> Eigen staart is ook dodelijk</label>
+          </div>
+        </details>
+
+        <details>
+          <summary>Obstakels <span class="pill" id="obpill">uit</span></summary>
+          <div class="stack">
+            <label class="chk"><input type="checkbox" id="ob"> Obstakels in de arena</label>
+            <div class="set"><label for="obn">Vaste obstakels</label><input type="range" id="obn" min="0" max="10" step="1"><output id="obnv"></output></div>
+            <label class="chk"><input type="checkbox" id="obblink"> Vaste obstakels verdwijnen en komen terug</label>
+            <div class="set"><label for="obmove">Bewegende obstakels</label><input type="range" id="obmove" min="0" max="8" step="1"><output id="obmovev"></output></div>
+            <div class="set"><label for="obmspd">Snelheid bewegende obstakels</label><input type="range" id="obmspd" min="0.3" max="3" step="0.1"><output id="obmspdv"></output></div>
+            <label class="chk"><input type="checkbox" id="obmblink"> Bewegende obstakels verdwijnen ook</label>
+            <div class="set"><label for="obon">Zichtbaar</label><input type="range" id="obon" min="2" max="20" step="1"><output id="obonv"></output></div>
+            <div class="set"><label for="oboff">Weg</label><input type="range" id="oboff" min="2" max="20" step="1"><output id="oboffv"></output></div>
+            <div class="keys">Zichtbaar en weg gelden voor alle obstakels die verdwijnen. Een obstakel knippert 1,5 seconde voordat het terugkomt.</div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Bonuspellets <span class="pill" id="pepill">uit</span></summary>
+          <div class="stack">
+            <label class="chk"><input type="checkbox" id="pe"> Bonuspellets</label>
+            <div class="set"><label for="peevery">Nieuwe pellet elke</label><input type="range" id="peevery" min="1" max="20" step="1"><output id="peeveryv"></output></div>
+            <div class="set"><label for="pedur">Effect duurt</label><input type="range" id="pedur" min="2" max="15" step="1"><output id="pedurv"></output></div>
+            <div class="set"><label for="pemax">Aantal pellets tegelijk</label><input type="range" id="pemax" min="1" max="8" step="1"><output id="pemaxv"></output></div>
+            <div class="keys">Nooit meer pellets tegelijk dan er spelers meedoen.</div>
+            <div class="set"><label for="pemove">Niet gepakt? Verhuist na</label><input type="range" id="pemove" min="2" max="15" step="1"><output id="pemovev"></output></div>
+            <div class="set"><label for="petg">Alle pellets tegelijk laten werken op</label><select id="petg">
+              <option value="">Kies…</option>
+              <option value="mix">Willekeurig</option>
+              <option value="self">Jezelf</option>
+              <option value="others">De tegenstanders</option>
+            </select></div>
+            <label class="chk"><input type="checkbox" id="mystery"> Verrassingspellets: je ziet niet wat je pakt</label>
+            <div class="row" style="justify-content:space-between;align-items:center;margin-top:4px"><span class="lbl">Welke pellets</span>
+              <span class="row"><button class="ghost" id="tyall" style="padding:3px 8px;font-size:12px">Alles</button><button class="ghost" id="tynone" style="padding:3px 8px;font-size:12px">Niets</button></span></div>
+            <div class="types" id="types"></div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Stuiterballen <span class="pill" id="blpill">uit</span></summary>
+          <div class="stack">
+            <label class="chk"><input type="checkbox" id="bl"> Stuiterballen in de arena</label>
+            <div class="set"><label for="bln">Aantal ballen</label><input type="range" id="bln" min="1" max="8" step="1"><output id="blnv"></output></div>
+            <div class="set"><label for="blsize">Grootte</label><input type="range" id="blsize" min="6" max="30" step="1"><output id="blsizev"></output></div>
+            <div class="set"><label for="blspd">Snelheid</label><input type="range" id="blspd" min="0.5" max="5" step="0.1"><output id="blspdv"></output></div>
+            <label class="chk"><input type="checkbox" id="blgum"> Gum: ballen wissen de sporen die ze raken</label>
+            <label class="chk"><input type="checkbox" id="blkill"> Ballen zijn dodelijk</label>
+            <div class="keys">Ballen stuiteren van de randen en van obstakels af.</div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Mijnen <span class="pill" id="mnpill">uit</span></summary>
+          <div class="stack">
+            <label class="chk"><input type="checkbox" id="mn"> Mijnen in de arena</label>
+            <div class="set"><label for="mnmax">Maximaal aantal mijnen</label><input type="range" id="mnmax" min="1" max="12" step="1"><output id="mnmaxv"></output></div>
+            <div class="set"><label for="mnevery">Nieuwe mijn elke</label><input type="range" id="mnevery" min="1" max="20" step="1"><output id="mneveryv"></output></div>
+            <label class="chk"><input type="checkbox" id="mnhid"> Verstopte mijnen: na 2 seconden bijna onzichtbaar</label>
+            <div class="keys">Een mijn is 1 seconde na verschijnen scherp. Rij je erop, dan ontploft hij: jij bent af en de sporen rondom zijn weg.</div>
+          </div>
+        </details>
+      </div>
+      <div class="keys" id="settings-info" hidden></div>
+      <div class="keys" id="keys">Sturen met <kbd>←</kbd> <kbd>→</kbd>. Glip door de gaten in andermans slang. Kop tegen een slang of obstakel is af. Met schermwrap kom je aan de overkant weer binnen, zonder schermwrap (rode rand) is de rand dodelijk. <kbd>F</kbd> = volledig scherm.</div>
+      <div class="stack">
+        <div class="set"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="100" step="5"><output id="volv"></output></div>
+        <div class="row"><button class="ghost" id="mute">Geluid: aan</button></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(() => {
+const W = 800, H = 560, TPS = 30, R = 2.6, TURN_PER_UNIT = 0.05;
+const SPEEDS = [
+  {n:"Slow", v:1.3}, {n:"Normal", v:2.1}, {n:"Medium", v:2.8},
+  {n:"Hard", v:3.6}, {n:"Insane", v:4.6}, {n:"Ludicrous", v:6.2}];
+const COLORS = ["#ff6b57","#4cb4ff","#ffc23d","#4fe0b0","#b48cff","#ff7ac8","#b8f05a","#f2efe6"];
+// Pellettypen. tg: welke doelen mogelijk zijn (0 = zelf, 1 = anderen, 2 = iedereen)
+const PT = [
+  {id:"inv",   n:"Omgekeerd",  d:"links en rechts wisselen",        g:"⇄", c:"#b48cff", tg:[0,1], bit:1},
+  {id:"fast",  n:"Turbo",      d:"veel sneller",                    g:"»", c:"#ffc23d", tg:[0,1], bit:2},
+  {id:"slow",  n:"Slak",       d:"veel trager",                     g:"«", c:"#4fe0b0", tg:[0,1], bit:4},
+  {id:"thick", n:"Dikkerd",    d:"dubbel zo dik spoor",             g:"●", c:"#ff8a3d", tg:[0,1], bit:8},
+  {id:"thin",  n:"Dunnetje",   d:"heel dun spoor",                  g:"·", c:"#d9c7a0", tg:[0,1], bit:128},
+  {id:"angle", n:"Haaks",      d:"alleen bochten van 90°",          g:"⌐", c:"#ff7ac8", tg:[0,1], bit:64},
+  {id:"sharp", n:"Wendbaar",   d:"veel krappere bochten",           g:"↺", c:"#7af0d0", tg:[0,1], bit:16384},
+  {id:"wide",  n:"Mammoettanker", d:"heel ruime bochten",           g:"◠", c:"#c0a0ff", tg:[0,1], bit:32768},
+  {id:"drunk", n:"Dronken",    d:"slingert vanzelf heen en weer",   g:"~", c:"#e8b04a", tg:[0,1], bit:4096},
+  {id:"freeze",n:"Bevroren",   d:"2 seconden stilstaan",            g:"❄", c:"#bfe9ff", tg:[0,1], bit:8192},
+  {id:"disco", n:"Disco",      d:"kleur flitst door alle kleuren",  g:"✦", c:"#f2efe6", tg:[0,1], bit:32},
+  {id:"invis", n:"Onzichtbaar",d:"de anderen zien je bijna niet",   g:"◐", c:"#8d8fab", tg:[0,1], bit:2048},
+  {id:"nogaps",n:"Dichtgeplakt",d:"geen gaten meer in je spoor",    g:"▬", c:"#ff5d6c", tg:[0,1], bit:256},
+  {id:"holes", n:"Gatenkaas",  d:"veel en grote gaten",             g:"⋯", c:"#ffe08a", tg:[0,1], bit:512},
+  {id:"portal",n:"Portaal",    d:"door de rand heen (zonder wrap)", g:"⊡", c:"#6fe0ff", tg:[0,1], bit:1024, noWrapOnly:true},
+  {id:"ghost", n:"Spook",      d:"1 keer door een slang heen",      g:"◌", c:"#9fd8ff", tg:[0,1], bit:16},
+  {id:"tele",  n:"Teleport",   d:"spring naar een vrije plek",      g:"⤳", c:"#a0ffb0", tg:[0,1], bit:0},
+  {id:"swap",  n:"Ruilen",     d:"wissel van plek met een ander",   g:"⇋", c:"#ffb0e0", tg:[0],   bit:0},
+  {id:"bomb",  n:"Bom",        d:"blaast sporen rondom weg",        g:"✹", c:"#ff9a5c", tg:[0,1], bit:0},
+  {id:"grass", n:"Gras",       d:"alles wordt gras: je ziet de anderen niet", g:"♣", c:"#3fae4a", tg:[0,1,2], bit:65536},
+  {id:"clear", n:"Wisser",     d:"alle sporen weg",                 g:"✕", c:"#6fb6ff", tg:[2],   bit:0},
+];
+const PTI = Object.fromEntries(PT.map((t,i)=>[t.id,i]));
+const TG_COL = ["#5be08a","#ff5d6c","#6fb6ff"];
+const TG_TXT = ["zelf","de anderen","iedereen"];
+const $ = id => document.getElementById(id);
+const trailCtx = $("trail").getContext("2d"), headCtx = $("heads").getContext("2d");
+
+/* ---------- instellingen ---------- */
+const OPT = {balls:false, blN:3, blSize:12, blSpd:2, blGum:true, blKill:true, vol:70, wrap:true, mystery:false, peMax:4, peMove:5, tgs:{},
+  obMove:0, obMoveSpd:1.2, obMoveBlink:false, mines:false, mnMax:4, mnEvery:6, mnHidden:false, rounds:10, inf:true, sp:1, ge:2.5, gw:19, self:false,
+  ob:false, obN:4, obBlink:true, obOn:7, obOff:4,
+  pe:false, peEvery:5, peDur:6, types:Object.fromEntries(PT.map(t=>[t.id,true]))};
+try{ const st = JSON.parse(localStorage.getItem("kronkels-opt")||"{}");
+  for(const k in OPT) if(k in st && typeof st[k]===typeof OPT[k]) OPT[k] = k==="types" ? Object.assign(OPT.types, st.types) : k==="tgs" ? Object.assign(OPT.tgs, st.tgs) : st[k]; }catch(e){}
+function saveOpt(){ try{ localStorage.setItem("kronkels-opt", JSON.stringify(OPT)); }catch(e){} }
+const gapSizeLabel = w => w<=12 ? "smal" : w<=24 ? "normaal" : w<=34 ? "breed" : "heel breed";
+function bindRange(id, key, fmt){
+  const el = $(id), out = $(id+"v");
+  el.value = OPT[key]; out.textContent = fmt(OPT[key]);
+  el.oninput = () => { OPT[key] = +el.value; out.textContent = fmt(OPT[key]); saveOpt(); renderPills(); };
+}
+function bindCheck(id, key){ const el = $(id); el.checked = OPT[key]; el.onchange = () => { OPT[key] = el.checked; saveOpt(); renderPills(); }; }
+$("speed").innerHTML = SPEEDS.map((x,i)=>`<option value="${i}">${x.n}</option>`).join("");
+$("speed").value = OPT.sp; $("speed").onchange = e => { OPT.sp = +e.target.value; saveOpt(); };
+const sec = v => (+v).toFixed(v%1?1:0) + " s";
+bindRange("gaps","ge",v=>(+v).toFixed(1)+" s"); bindRange("gapw","gw",gapSizeLabel);
+bindCheck("selfl","self"); bindCheck("wrap","wrap"); bindCheck("mystery","mystery");
+
+bindRange("rounds","rounds",v=>v); bindCheck("inf","inf");
+const syncInf = () => { $("rounds").disabled = OPT.inf; $("roundsv").style.opacity = OPT.inf ? .4 : 1; };
+$("inf").addEventListener("change", syncInf); syncInf();
+bindCheck("ob","ob"); bindRange("obn","obN",v=>v); bindCheck("obblink","obBlink");
+bindRange("obon","obOn",sec); bindRange("oboff","obOff",sec);
+bindCheck("pe","pe"); bindRange("peevery","peEvery",sec); bindRange("pedur","peDur",sec);
+bindRange("pemax","peMax",v=>v); bindRange("pemove","peMove",sec);
+bindRange("obmove","obMove",v=>v); bindRange("obmspd","obMoveSpd",v=>(+v).toFixed(1)+"×"); bindCheck("obmblink","obMoveBlink");
+bindCheck("bl","balls"); bindRange("bln","blN",v=>v); bindRange("blsize","blSize",v=>v); bindRange("blspd","blSpd",v=>(+v).toFixed(1)+"×");
+bindCheck("blgum","blGum"); bindCheck("blkill","blKill");
+bindRange("vol","vol",v=>v+"%"); $("vol").addEventListener("input", () => { if(master) master.gain.value = OPT.vol/100; });
+bindCheck("mn","mines"); bindRange("mnmax","mnMax",v=>v); bindRange("mnevery","mnEvery",sec); bindCheck("mnhid","mnHidden");
+const TG_OPTS = t => {
+  const o = [];
+  if(t.tg.length>1) o.push(["mix","Willekeurig"]);
+  if(t.tg.includes(0)) o.push(["self","Jezelf"]);
+  if(t.tg.includes(1)) o.push(["others","Tegenstanders"]);
+  if(t.tg.includes(2)) o.push(["all","Iedereen"]);
+  return o;
+};
+$("types").innerHTML = PT.map(t=>`<div class="trow"><label class="chk" title="${t.d}"><input type="checkbox" id="ty-${t.id}"> <span class="gl" style="background:${t.c}">${t.g}</span>${t.n}</label>`
+  + `<select id="tg-${t.id}" aria-label="${t.n} werkt op">${TG_OPTS(t).map(([v,l])=>`<option value="${v}">${l}</option>`).join("")}</select></div>`).join("");
+PT.forEach(t => {
+  const sel = $("tg-"+t.id), ok = TG_OPTS(t).map(o=>o[0]);
+  if(!ok.includes(OPT.tgs[t.id])) OPT.tgs[t.id] = ok[0];
+  sel.value = OPT.tgs[t.id];
+  sel.onchange = () => { OPT.tgs[t.id] = sel.value; saveOpt(); };
+});
+$("petg").onchange = e => {
+  const v = e.target.value; if(!v) return;
+  PT.forEach(t => { const ok = TG_OPTS(t).map(o=>o[0]); if(ok.includes(v)){ OPT.tgs[t.id] = v; $("tg-"+t.id).value = v; } });
+  saveOpt(); e.target.value = "";
+};
+PT.forEach(t => { if(OPT.types[t.id]===undefined) OPT.types[t.id] = true; const el = $("ty-"+t.id); el.checked = OPT.types[t.id]; el.onchange = () => { OPT.types[t.id] = el.checked; saveOpt(); }; });
+const setAllTypes = v => { PT.forEach(t => { OPT.types[t.id] = v; $("ty-"+t.id).checked = v; }); saveOpt(); };
+$("tyall").onclick = () => setAllTypes(true); $("tynone").onclick = () => setAllTypes(false);
+$("legend").innerHTML = PT.map(t=>`<div title="${t.d}"><span class="gl" style="background:${t.c}">${t.g}</span><span><b>${t.n}</b> · ${t.d}</span></div>`).join("");
+function renderPills(){
+  $("obpill").textContent = OPT.ob ? "aan" : "uit"; $("obpill").classList.toggle("on", OPT.ob);
+  $("pepill").textContent = OPT.pe ? "aan" : "uit"; $("pepill").classList.toggle("on", OPT.pe);
+  $("blpill").textContent = OPT.balls ? "aan" : "uit"; $("blpill").classList.toggle("on", OPT.balls);
+  $("mnpill").textContent = OPT.mines ? "aan" : "uit"; $("mnpill").classList.toggle("on", OPT.mines);
+  const np = (G && G.ph!=="lobby" ? G.pl.length : roster().length) || 1;
+  $("pemaxv").textContent = OPT.peMax > np ? `${OPT.peMax} → ${np}` : OPT.peMax;
+}
+
+/* ---------- geluid ---------- */
+let ac = null, muted = false, master = null;
+function audio(){
+  if(!ac){ try{
+    ac = new (window.AudioContext||window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value = OPT.vol/100;
+    const comp = ac.createDynamicsCompressor(); master.connect(comp).connect(ac.destination);
+  }catch(e){} }
+  if(ac && ac.state==="suspended") ac.resume(); return ac;
+}
+function tone(f, d, type="square", vol=.12, slideTo=null, when=0){
+  const a = audio(); if(!a || muted) return;
+  const t = a.currentTime + when, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t+d);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t+d);
+  o.connect(g).connect(master); o.start(t); o.stop(t+d+.02);
+}
+function noise(len, from, to, vol, type="lowpass", when=0){
+  const a = audio(); if(!a || muted) return;
+  const t = a.currentTime + when, buf = a.createBuffer(1, a.sampleRate*len, a.sampleRate), d = buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * (1-i/d.length);
+  const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  s.buffer = buf; f.type=type; f.frequency.setValueAtTime(from,t); f.frequency.exponentialRampToValueAtTime(to,t+len);
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+len);
+  s.connect(f).connect(g).connect(master); s.start(t);
+}
+const sfx = {
+  beep: () => tone(520,.12,"square",.1),
+  go:   () => { tone(880,.18,"square",.12); tone(1320,.18,"square",.06,null,.05); },
+  crash:() => { noise(.45,2400,120,.35); tone(180,.35,"sawtooth",.1,40); },
+  win:  (big) => [523,659,784,1047].forEach((f,i)=>tone(f,.16,"triangle",big?.16:.09,null,i*.11)),
+  join: () => tone(660,.08,"sine",.1,990),
+  good: () => [660,880,1175].forEach((f,i)=>tone(f,.09,"square",.08,null,i*.06)),
+  zap:  () => { tone(1400,.25,"sawtooth",.08,180); tone(700,.25,"square",.05,90,.03); },
+  wipe: () => noise(.6,300,6000,.18),
+  ghost:() => tone(300,.4,"sine",.1,1200),
+  thud: () => tone(90,.18,"sine",.18,50),
+  // aftellen: elke tel een andere toon
+  count: (n) => { const f = {3:440, 2:554, 1:659}[n] || 520; tone(f,.14,"square",.1); tone(f*2,.08,"sine",.04); },
+  start: () => { [523,659,784].forEach(f=>tone(f,.35,"sawtooth",.06)); tone(1047,.4,"square",.07,null,.08); noise(.3,8000,2000,.05,"highpass"); },
+  sad:  () => [392,370,349,311].forEach((f,i)=>tone(f,i===3?.6:.22,"sawtooth",.07,i===3?260:null,i*.24)),
+  bigwin: () => { [523,659,784,1047,784,1047].forEach((f,i)=>tone(f,.18,"square",.08,null,i*.12)); [1319,1568,2093].forEach((f,i)=>tone(f,.4,"triangle",.09,null,.8+i*.1)); noise(1.2,9000,3000,.05,"highpass",.8); },
+  boing: (size) => { const f = 900 - size*22; tone(f,.12,"sine",.07,f*.55); },
+  armed: () => { tone(1800,.04,"square",.03); tone(1800,.04,"square",.03,null,.09); },
+  fxEnd: () => tone(700,.18,"triangle",.06,260),
+  rub:  () => noise(.12,1800,900,.025,"bandpass"),
+  fanfare: () => { [784,988,1175,1568].forEach((f,i)=>tone(f,.14,"square",.07,null,i*.07)); tone(2093,.3,"triangle",.07,null,.3); },
+  boom: () => { noise(.9,2600,50,.45); tone(60,.7,"sine",.3,25); tone(120,.3,"sawtooth",.1,30,.05); },
+};
+// eigen geluid per pellet
+const TSFX = {
+  inv:   () => { for(let i=0;i<4;i++) tone(i%2?700:500,.08,"square",.07,null,i*.07); },
+  fast:  () => { tone(300,.45,"sawtooth",.07,1800); noise(.4,1000,6000,.05,"bandpass"); },
+  slow:  () => tone(900,.7,"sawtooth",.07,120),
+  thick: () => { tone(160,.3,"sine",.16,70); tone(320,.15,"square",.04); },
+  thin:  () => [1568,2093,2637].forEach((f,i)=>tone(f,.07,"sine",.06,null,i*.05)),
+  angle: () => { tone(1000,.04,"square",.08); tone(1000,.04,"square",.08,null,.12); tone(1300,.05,"square",.08,null,.24); },
+  sharp: () => noise(.3,500,7000,.1,"bandpass"),
+  wide:  () => { tone(110,.8,"sawtooth",.09); tone(116,.8,"sawtooth",.06); },
+  drunk: () => { tone(400,.25,"sine",.08,250); tone(600,.15,"square",.04,300,.25); tone(300,.3,"sine",.07,500,.4); },
+  freeze:() => { [2637,3136,2349,2794,3520].forEach((f,i)=>tone(f,.25,"sine",.04,null,i*.06)); noise(.5,9000,6000,.03,"highpass"); },
+  disco: () => [523,659,784,1047,784,659,523,659].forEach((f,i)=>tone(f,.07,"square",.06,null,i*.055)),
+  invis: () => { tone(1200,.6,"sine",.06,200); tone(1205,.6,"sine",.05,210); },
+  nogaps:() => noise(.25,3000,300,.12,"bandpass"),
+  holes: () => { for(let i=0;i<7;i++) tone(rnd(400,1200),.04,"square",.06,null,i*.06+Math.random()*.03); },
+  portal:() => { tone(200,.5,"sine",.1,1600); tone(210,.5,"triangle",.05,1700,.05); },
+  ghost: () => { tone(300,.4,"sine",.1,1200); tone(600,.5,"sine",.05,300,.15); },
+  tele:  () => { tone(1600,.2,"sine",.08,200); tone(200,.2,"sine",.08,1600,.2); },
+  swap:  () => { tone(600,.12,"square",.07,900); tone(900,.12,"square",.07,600,.14); },
+  bomb:  () => {},
+  grass: () => { noise(.9,1200,1800,.12,"bandpass"); noise(.6,2500,1500,.06,"bandpass",.3); },
+  clear: () => noise(.6,300,6000,.18),
+};
+$("mute").onclick = () => { muted = !muted; $("mute").textContent = "Geluid: " + (muted ? "uit" : "aan"); audio(); };
+
+/* ---------- invoer ---------- */
+const keys = {left:false,right:false,a:false,d:false};
+const myTurn = () => (keys.left?-1:0)+(keys.right?1:0);
+const p2Turn = () => (keys.a?-1:0)+(keys.d?1:0);
+addEventListener("keydown", e => {
+  if(e.target.tagName==="INPUT" && e.target.type==="text") return;
+  if(e.key==="ArrowLeft") keys.left=true; else if(e.key==="ArrowRight") keys.right=true;
+  else if(e.key==="a"||e.key==="A") keys.a=true; else if(e.key==="d"||e.key==="D") keys.d=true; else return;
+  e.preventDefault(); sendInput();
+});
+addEventListener("keyup", e => {
+  if(e.key==="ArrowLeft") keys.left=false; else if(e.key==="ArrowRight") keys.right=false;
+  else if(e.key==="a"||e.key==="A") keys.a=false; else if(e.key==="d"||e.key==="D") keys.d=false; else return;
+  sendInput();
+});
+function holdBtn(el, k){
+  const on = e => { e.preventDefault(); keys[k]=true; el.classList.add("on"); audio(); sendInput(); };
+  const off = () => { keys[k]=false; el.classList.remove("on"); sendInput(); };
+  el.addEventListener("pointerdown", on); el.addEventListener("pointerup", off);
+  el.addEventListener("pointercancel", off); el.addEventListener("pointerleave", off);
+}
+holdBtn($("tl"),"left"); holdBtn($("tr"),"right");
+
+let myName = ""; try{ myName = localStorage.getItem("kronkels-name")||""; }catch(e){}
+$("name").value = myName;
+
+/* ---------- spelmotor (draait alleen bij de host) ---------- */
+const own = new Uint8Array(W*H), stamp = new Int32Array(W*H);
+let G = null;
+const rnd = (a,b) => a + Math.random()*(b-a);
+function newGame(){ G = {round:0, match:0, fw:[], fs:0, ph:"lobby", tick:0, w:-1, pl:[], scores:{}, ob:[], pe:[], mn:[], bl:[], cl:0, ev:[]}; }
+
+function makeObstacles(){
+  const obs = [];
+  if(!OPT.ob) return obs;
+  const cycle = (OPT.obOn + OPT.obOff) * TPS;
+  for(let n=0; n<OPT.obMove; n++){
+    const w = rnd(24,60), h = Math.random()<.5 ? w*rnd(.5,1) : rnd(20,60), a = Math.random()*Math.PI*2;
+    obs.push({x:rnd(30,W-30-w), y:rnd(30,H-30-h), w, h, mv:true, va:a, off: Math.random()*cycle|0, st:2});
+  }
+  for(let n=0; n<OPT.obN; n++){
+    for(let t=0; t<40; t++){
+      const long = Math.random()<.35;
+      const w = long ? (Math.random()<.5 ? rnd(110,190) : rnd(16,24)) : rnd(30,80);
+      const h = long ? (w>60 ? rnd(16,24) : rnd(110,190)) : rnd(30,80);
+      const x = rnd(30, W-30-w), y = rnd(30, H-30-h);
+      if(obs.some(o => !o.mv && x < o.x+o.w+40 && x+w+40 > o.x && y < o.y+o.h+40 && y+h+40 > o.y)) continue;
+      obs.push({x, y, w, h, off: Math.random()*cycle|0, st:2});
+      break;
+    }
+  }
+  return obs;
+}
+function obstacleState(o){
+  if(!(o.mv ? OPT.obMoveBlink : OPT.obBlink)) return 2;
+  const on = OPT.obOn*TPS, off = OPT.obOff*TPS, t = (G.tick + o.off) % (on+off);
+  if(t < on) return 2;
+  return t >= on + off - 1.5*TPS ? 1 : 0;
+}
+const inRect = (x,y,o,pad=0) => x > o.x-pad && x < o.x+o.w+pad && y > o.y-pad && y < o.y+o.h+pad;
+
+function startRound(roster){
+  if(!G) newGame();
+  own.fill(0);
+  G.round++; G.match++; G.ph="cd"; G.tick=0; G.phT=0; G.w=-1; G.pe=[]; G.mn=[]; G.bl=[]; G.ev=[];
+  G.peTimer = OPT.peEvery*TPS*rnd(.5,1); G.mnTimer = OPT.mnEvery*TPS*rnd(.5,1);
+  G.ob = makeObstacles();
+  const pl = [];
+  roster.forEach((r,i) => {
+    let x,y,a,tries=0;
+    do {
+      x = rnd(70,W-70); y = rnd(70,H-70); a = Math.random()*Math.PI*2; tries++;
+    } while(tries<200 && (pl.some(p=>Math.hypot(p.x-x,p.y-y)<110) ||
+      G.ob.some(o => inRect(x,y,o,o.mv?70:30) || inRect(x+Math.cos(a)*90, y+Math.sin(a)*90, o, 25) || inRect(x+Math.cos(a)*45, y+Math.sin(a)*45, o, 25))));
+    pl.push({k:r.k, n:r.n, c:i%COLORS.length, x, y, a, alive:true, gap:false,
+      gapLeft:0, nextGap:nextGapTicks(), fx:{}, ghost:0, immune:0, prevIn:0});
+    if(G.scores[r.k]==null) G.scores[r.k]=0;
+  });
+  G.pl = pl;
+  if(OPT.balls) for(let n=0;n<OPT.blN;n++){
+    const r = OPT.blSize * rnd(.8,1.2);
+    for(let t=0;t<100;t++){
+      const x = rnd(r+10,W-r-10), y = rnd(r+10,H-r-10);
+      if(pl.some(p=>Math.hypot(p.x-x,p.y-y)<120) || G.ob.some(o=>inRect(x,y,o,r+10)) || G.bl.some(b=>Math.hypot(b.x-x,b.y-y)<b.r+r+10)) continue;
+      const a = Math.random()*Math.PI*2; G.bl.push({x, y, r, va:a}); break;
+    }
+  }
+}
+const nextGapTicks = () => Math.max(4, Math.round(OPT.ge*TPS*rnd(.7,1.3)));
+const has = (p,id) => (p.fx[id]||0) > G.tick;
+const pSpeed = p => has(p,"freeze") ? 0 : SPEEDS[OPT.sp].v * (has(p,"fast")?1.6:1) * (has(p,"slow")?.55:1);
+const pRad = p => has(p,"thick") ? R*2 : has(p,"thin") ? R*.55 : R;
+const pTurn = p => TURN_PER_UNIT * (has(p,"sharp")?1.9:1) * (has(p,"wide")?.45:1);
+const canWrap = p => OPT.wrap || has(p,"portal");
+// paren die elkaar opheffen
+const OPPOSITE = {fast:"slow", slow:"fast", thick:"thin", thin:"thick", sharp:"wide", wide:"sharp", nogaps:"holes", holes:"nogaps"};
+function freeSpot(){
+  for(let t=0;t<300;t++){
+    const x = rnd(40,W-40), y = rnd(40,H-40);
+    if(G.ob.some(o=>inRect(x,y,o,30))) continue;
+    if(G.pl.some(p=>p.alive && Math.hypot(p.x-x,p.y-y)<60)) continue;
+    let busy = false;
+    for(let dy=-28;dy<=28 && !busy;dy+=4) for(let dx=-28;dx<=28;dx+=4){ if(own[(Math.floor(y+dy))*W + Math.floor(x+dx)]){ busy = true; break; } }
+    if(!busy) return {x, y};
+  }
+  return null;
+}
+
+function stampDisc(x,y,i,r){
+  const rc = Math.ceil(r);
+  for(let dy=-rc;dy<=rc;dy++) for(let dx=-rc;dx<=rc;dx++){
+    if(dx*dx+dy*dy>r*r) continue;
+    const cx = ((Math.floor(x)+dx)%W+W)%W, cy = ((Math.floor(y)+dy)%H+H)%H, c = cy*W+cx;
+    own[c] = i+1; stamp[c] = G.tick;
+  }
+}
+// "wall" = obstakel, "trail" = een slang, false = vrij
+function hits(p,i){
+  const r = pRad(p);
+  if(G.ob.some(o => o.st===2 && inRect(p.x,p.y,o,r*.5))) return "wall";
+  for(const off of [0,.55,-.55]){
+    const px = p.x+Math.cos(p.a+off)*(r+1.2), py = p.y+Math.sin(p.a+off)*(r+1.2);
+    if(!canWrap(p) && (px<0||px>=W||py<0||py>=H)) continue;
+    if(G.ob.some(o => o.st===2 && inRect(px,py,o))) return "wall";
+    const c = ((Math.floor(py)%H+H)%H)*W + ((Math.floor(px)%W+W)%W);
+    const o = own[c];
+    if(!o) continue;
+    if(o-1!==i) return "trail";
+    if(OPT.self && stamp[c] < G.tick-12) return "trail";
+  }
+  return false;
+}
+function event(e){ G.ev.push(e); }
+function finishMatch(){
+  G.ph = "final"; G.phT = 0; G.pe = [];
+  const sc = G.pl.map(p => G.scores[p.k]||0), top = Math.max(0, ...sc);
+  G.fs = top; G.fw = top>0 ? G.pl.filter(p => (G.scores[p.k]||0)===top).map(p=>p.n) : [];
+}
+function newMatch(){ if(!G) newGame(); G.scores = {}; G.match = 0; G.fw = []; G.fs = 0; startRound(roster()); }
+
+function applyPellet(pi, pel){
+  const t = PT[pel.ty], picker = G.pl[pi];
+  const until = G.tick + OPT.peDur*TPS;
+  const targets = pel.tg===0 ? [picker] : pel.tg===1 ? G.pl.filter(p=>p!==picker && p.alive) : G.pl;
+  if(t.id==="clear"){ own.fill(0); G.cl++; }
+  else if(t.id==="ghost") targets.forEach(p => p.ghost++);
+  else if(t.id==="freeze") targets.forEach(p => p.fx.freeze = G.tick + 2*TPS);
+  else if(t.id==="tele") targets.forEach(p => { const f = freeSpot(); if(f){ p.x=f.x; p.y=f.y; p.jump=true; p.immune = Math.max(p.immune, 6); } });
+  else if(t.id==="swap"){
+    const others = G.pl.filter(p=>p!==picker && p.alive);
+    if(others.length){
+      const o = others[Math.random()*others.length|0];
+      [picker.x,o.x] = [o.x,picker.x]; [picker.y,o.y] = [o.y,picker.y]; [picker.a,o.a] = [o.a,picker.a];
+      picker.jump = o.jump = true; picker.immune = Math.max(picker.immune,6); o.immune = Math.max(o.immune,6);
+    }
+  }
+  else if(t.id==="bomb") targets.forEach(p => { blast(p.x, p.y, 70); event({k:"b", x:Math.round(p.x), y:Math.round(p.y), r:70}); });
+  else targets.forEach(p => {
+    if(OPPOSITE[t.id]) p.fx[OPPOSITE[t.id]] = 0;
+    p.fx[t.id] = until;
+    if(t.id==="holes"){ p.nextGap = Math.min(p.nextGap, 5); }
+  });
+  event({k:"p", i:pi, ty:pel.ty, tg:pel.tg});
+}
+function pelletSpot(away){
+  for(let t=0;t<80;t++){
+    const x = rnd(25,W-25), y = rnd(25,H-25);
+    if(G.ob.some(o=>inRect(x,y,o,16))) continue;
+    if(G.pl.some(p=>p.alive && Math.hypot(p.x-x,p.y-y)<60)) continue;
+    if(G.pe.some(q=>Math.hypot(q.x-x,q.y-y)<50)) continue;
+    if(G.mn.some(m=>Math.hypot(m.x-x,m.y-y)<40)) continue;
+    if(away && Math.hypot(away.x-x,away.y-y)<150) continue;
+    return {x,y};
+  }
+  return null;
+}
+function spawnPellet(){
+  const types = PT.map((t,i)=>i).filter(i => OPT.types[PT[i].id] && !(PT[i].noWrapOnly && OPT.wrap));
+  if(!types.length) return;
+  const ty = types[Math.random()*types.length|0], t = PT[ty];
+  const set = OPT.tgs[t.id] || "mix";
+  const tg = set==="self" ? 0 : set==="others" ? 1 : set==="all" ? 2 : t.tg[Math.random()*t.tg.length|0];
+  const sp = pelletSpot(); if(sp) G.pe.push({x:sp.x, y:sp.y, ty, tg, born:G.tick});
+}
+function spawnMine(){
+  for(let t=0;t<80;t++){
+    const x = rnd(30,W-30), y = rnd(30,H-30);
+    if(G.ob.some(o=>inRect(x,y,o,20))) continue;
+    if(G.pl.some(p=>p.alive && Math.hypot(p.x-x,p.y-y)<90)) continue;
+    if(G.mn.some(m=>Math.hypot(m.x-x,m.y-y)<50) || G.pe.some(q=>Math.hypot(q.x-x,q.y-y)<40)) continue;
+    G.mn.push({x, y, born:G.tick}); return;
+  }
+}
+function blast(x, y, br){
+  for(let dy=-br;dy<=br;dy++) for(let dx=-br;dx<=br;dx++){
+    if(dx*dx+dy*dy>br*br) continue;
+    own[(((Math.floor(y)+dy)%H+H)%H)*W + (((Math.floor(x)+dx)%W+W)%W)] = 0;
+  }
+}
+
+function step(inputs){
+  G.tick++; G.phT++; G.ev = [];
+  G.ob.forEach(o => { const s = obstacleState(o); if(s===2 && o.st!==2 && G.ph==="play") event({k:"ob"}); o.st = s; });
+  if(G.ph==="cd"){ if(G.phT>=TPS*3){ G.ph="play"; G.phT=0; } return; }
+  if(G.ph==="over"){
+    if(G.phT>=TPS*3.5){
+      if(!OPT.inf && G.match >= OPT.rounds) finishMatch(); else startRound(roster());
+    }
+    return;
+  }
+  if(G.ph==="final") return;
+  if(G.ph!=="play") return;
+
+  // bewegende obstakels
+  G.ob.forEach(o => {
+    if(!o.mv) return;
+    const v = OPT.obMoveSpd;
+    o.x += Math.cos(o.va)*v; o.y += Math.sin(o.va)*v;
+    if(o.x < 0){ o.x = 0; o.va = Math.PI - o.va; } else if(o.x+o.w > W){ o.x = W-o.w; o.va = Math.PI - o.va; }
+    if(o.y < 0){ o.y = 0; o.va = -o.va; } else if(o.y+o.h > H){ o.y = H-o.h; o.va = -o.va; }
+    if(Math.random() < .01) o.va += rnd(-.6,.6);   // af en toe een andere koers
+  });
+
+  // pellets: bijmaken tot het ingestelde aantal (nooit meer dan spelers), verhuizen als niemand ze pakt
+  if(OPT.pe){
+    const maxPe = Math.min(OPT.peMax, G.pl.length);
+    if(--G.peTimer <= 0){
+      G.peTimer = OPT.peEvery*TPS*rnd(.7,1.3);
+      if(G.pe.length < maxPe) spawnPellet();
+    }
+    while(G.pe.length > maxPe) G.pe.pop();
+    G.pe.forEach(q => {
+      if(G.tick - q.born > OPT.peMove*TPS){
+        const sp = pelletSpot(q); if(sp){ event({k:"pm", x:Math.round(q.x), y:Math.round(q.y)}); q.x = sp.x; q.y = sp.y; }
+        q.born = G.tick;
+      }
+    });
+  } else G.pe = [];
+
+  // mijnen
+  if(OPT.mines){
+    if(--G.mnTimer <= 0){
+      G.mnTimer = OPT.mnEvery*TPS*rnd(.7,1.3);
+      if(G.mn.length < OPT.mnMax) spawnMine();
+    }
+  } else G.mn = [];
+
+  // per tick: besturing, gaten, timers
+  const ctl = new Map();
+  G.pl.forEach(p => {
+    if(!p.alive) return;
+    let inp = inputs[p.k]||0;
+    if(has(p,"inv")) inp = -inp;
+    if(has(p,"angle")){
+      if(inp!==0 && inp!==p.prevIn) p.a += inp*Math.PI/2;
+      ctl.set(p, 0);
+    } else {
+      let c = inp;
+      if(has(p,"drunk")) c += Math.sin(G.tick*.13 + p.c*1.7)*.9 + Math.sin(G.tick*.31 + p.c)*.4;
+      ctl.set(p, Math.max(-1.6, Math.min(1.6, c)));
+    }
+    p.prevIn = inp;
+    if(p.immune>0) p.immune--;
+    const spd = pSpeed(p);
+    const holes = has(p,"holes");
+    if(p.gapLeft>0){ p.gapLeft--; p.gap = p.gapLeft>0; if(!p.gap) p.nextGap = holes ? Math.max(4, nextGapTicks()/4|0) : nextGapTicks(); }
+    else if(has(p,"nogaps")) p.gap = false;
+    else if(--p.nextGap<=0){ p.gapLeft = Math.max(3, Math.round(OPT.gw*(holes?1.8:1)/Math.max(spd,.5))); p.gap = true; }
+  });
+
+  // bewegen in kleine stapjes, zodat snelle slangen niet door een spoor heen springen
+  const maxSpd = Math.max(1, ...G.pl.filter(p=>p.alive).map(pSpeed));
+  const sub = Math.ceil(maxSpd/1.5);
+  for(let s=0;s<sub;s++){
+    const moved = [];
+    G.pl.forEach((p,i) => {
+      if(!p.alive) return;
+      const ds = pSpeed(p)/sub, px=p.x, py=p.y;
+      p.a += ctl.get(p)*pTurn(p)*ds;
+      let nx = p.x + Math.cos(p.a)*ds, ny = p.y + Math.sin(p.a)*ds, oob = false;
+      if(nx<0 || nx>=W || ny<0 || ny>=H){
+        if(canWrap(p)){ nx = (nx+W)%W; ny = (ny+H)%H; }
+        else { oob = true; nx = Math.max(0,Math.min(W-.01,nx)); ny = Math.max(0,Math.min(H-.01,ny)); }
+      }
+      p.x = nx; p.y = ny;
+      moved.push([p,i,px,py,oob]);
+    });
+    const dead = [];
+    moved.forEach(m => {
+      const [p,i,,,oob] = m;
+      if(oob){ dead.push(m); return; }
+      if(OPT.blKill && G.bl.some(b => Math.hypot(b.x-p.x, b.y-p.y) < b.r + pRad(p))){ event({k:"bh", i}); dead.push(m); return; }
+      const mi = G.mn.findIndex(q => G.tick - q.born >= TPS && Math.hypot(q.x-p.x, q.y-p.y) < 7 + pRad(p));
+      if(mi>=0){
+        const q = G.mn.splice(mi,1)[0];
+        blast(q.x, q.y, 55);
+        event({k:"m", i, x:Math.round(q.x), y:Math.round(q.y), r:55});
+        dead.push(m); return;
+      }
+      const h = hits(p,i);
+      if(h==="trail" && p.immune>0) return;
+      if(h==="trail" && p.ghost>0){ p.ghost--; p.immune = Math.ceil(26/pSpeed(p))+2; event({k:"g", i}); return; }
+      if(h) dead.push(m);
+    });
+    for(let a=0;a<moved.length;a++) for(let b=a+1;b<moved.length;b++){
+      const A=moved[a][0], B=moved[b][0];
+      if(Math.hypot(A.x-B.x,A.y-B.y) < (pRad(A)+pRad(B))*1.1){ if(!dead.includes(moved[a])) dead.push(moved[a]); if(!dead.includes(moved[b])) dead.push(moved[b]); }
+    }
+    dead.forEach(([p]) => p.alive=false);
+    moved.forEach(([p,i,px,py]) => {
+      if(!p.alive || p.gap) return;
+      const r = pRad(p), dx=p.x-px, dy=p.y-py;
+      if(p.jump || Math.abs(dx)>W/2||Math.abs(dy)>H/2){ stampDisc(p.x,p.y,i,r); return; }
+      const n = Math.max(1, Math.ceil(Math.hypot(dx,dy)));
+      for(let k=1;k<=n;k++) stampDisc(px+dx*k/n, py+dy*k/n, i, r);
+    });
+    // pellets oppakken
+    moved.forEach(([p,i]) => {
+      if(!p.alive) return;
+      const j = G.pe.findIndex(q => Math.hypot(q.x-p.x, q.y-p.y) < 10 + pRad(p));
+      if(j>=0){ const q = G.pe.splice(j,1)[0]; applyPellet(i,q); }
+    });
+  }
+
+  // stuiterballen
+  G.bl.forEach(b => {
+    const steps = Math.ceil(OPT.blSpd/2), v = OPT.blSpd/steps;
+    for(let k=0;k<steps;k++){
+      let vx = Math.cos(b.va)*v, vy = Math.sin(b.va)*v, bounced = false;
+      b.x += vx; b.y += vy;
+      if(b.x < b.r){ b.x = b.r; vx = Math.abs(vx); bounced = true; } else if(b.x > W-b.r){ b.x = W-b.r; vx = -Math.abs(vx); bounced = true; }
+      if(b.y < b.r){ b.y = b.r; vy = Math.abs(vy); bounced = true; } else if(b.y > H-b.r){ b.y = H-b.r; vy = -Math.abs(vy); bounced = true; }
+      for(const o of G.ob){
+        if(o.st!==2) continue;
+        const cx = Math.max(o.x, Math.min(b.x, o.x+o.w)), cy = Math.max(o.y, Math.min(b.y, o.y+o.h));
+        const dx = b.x-cx, dy = b.y-cy, d = Math.hypot(dx,dy);
+        if(d < b.r){
+          if(d > 0){ const nx = dx/d, ny = dy/d, dot = vx*nx+vy*ny; if(dot<0){ vx -= 2*dot*nx; vy -= 2*dot*ny; } b.x = cx + nx*b.r; b.y = cy + ny*b.r; }
+          else { vx = -vx; vy = -vy; }
+          bounced = true;
+        }
+      }
+      b.va = Math.atan2(vy, vx);
+      if(bounced){ b.va += rnd(-.08,.08); event({k:"bb", r:Math.round(b.r)}); }
+      if(OPT.blGum) blast(b.x, b.y, Math.ceil(b.r));
+    }
+  });
+
+  const alive = G.pl.filter(p=>p.alive);
+  const end = G.pl.length>1 ? alive.length<=1 : alive.length===0;
+  if(end){
+    G.ph="over"; G.phT=0;
+    G.w = alive.length===1 && G.pl.length>1 ? G.pl.indexOf(alive[0]) : -1;
+    if(G.w>=0) G.scores[alive[0].k]++;
+  }
+}
+function fxBits(p){
+  let b = 0; PT.forEach(t => { if(t.bit && t.id!=="ghost" && has(p,t.id)) b |= t.bit; });
+  if(p.ghost>0 || p.immune>0) b |= 16;
+  return b;
+}
+function snapshot(){
+  return { lb: roster().map(r=>[r.k,r.n]), sp:OPT.sp, ge:OPT.ge, gw:OPT.gw, obOn:OPT.ob, peOn:OPT.pe,
+    r:G.round, rn:G.match, rt: OPT.inf ? 0 : OPT.rounds, fw:G.fw, fs:G.fs, ph:G.ph, t:G.tick, w:G.w, cl:G.cl, ev:G.ev,
+    cd: G.ph==="cd" ? Math.ceil((TPS*3-G.phT)/TPS) : 0,
+    wrap: OPT.wrap, mys: OPT.mystery,
+    pl: G.pl.map(p => { const gap = p.gap || p.jump; p.jump = false; return [p.k, p.n, p.c, G.scores[p.k]||0, +p.x.toFixed(1), +p.y.toFixed(1), p.alive?1:0, gap?1:0, +p.a.toFixed(2), fxBits(p)]; }),
+    ob: G.ob.map(o => [Math.round(o.x), Math.round(o.y), Math.round(o.w), Math.round(o.h), o.st]),
+    mnOn: OPT.mines, mnHid: OPT.mnHidden, blOn: OPT.balls, blGum: OPT.blGum, blKill: OPT.blKill,
+    bl: (G.bl||[]).map(b => [+b.x.toFixed(1), +b.y.toFixed(1), +b.r.toFixed(1)]),
+    mn: G.mn.map(q => [Math.round(q.x), Math.round(q.y), G.tick - q.born >= TPS ? 1 : 0, G.tick - q.born]),
+    pe: G.pe.map(q => OPT.mystery ? [Math.round(q.x), Math.round(q.y), -1, -1] : [Math.round(q.x), Math.round(q.y), q.ty, q.tg]) };
+}
+
+/* ---------- tekenen (iedereen, vanuit een snapshot) ---------- */
+let S = null, last = {}, lastRound = -1, lastCl = -1;
+// gras-overlay, één keer getekend
+const grassCanvas = (() => {
+  const c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d");
+  g.fillStyle = "#1f5a24"; g.fillRect(0,0,W,H);
+  for(let i=0;i<9000;i++){
+    const x = Math.random()*W, y = Math.random()*H, l = 5+Math.random()*9, a = -Math.PI/2 + (Math.random()-.5)*.8;
+    g.strokeStyle = `hsl(${100+Math.random()*30} ${45+Math.random()*30}% ${22+Math.random()*28}%)`;
+    g.lineWidth = 1+Math.random()*1.4;
+    g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(a)*l, y+Math.sin(a)*l); g.stroke();
+  }
+  return c;
+})();
+// confetti
+const fxCtx = $("fxc").getContext("2d");
+let confetti = [];
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function burst(cols, n=70){
+  if(reduceMotion) return;
+  for(let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, v = 3+Math.random()*7;
+    confetti.push({x:W/2, y:H/2, vx:Math.cos(a)*v, vy:Math.sin(a)*v-3, r:Math.random()*Math.PI, vr:(Math.random()-.5)*.4,
+      w:4+Math.random()*5, h:2+Math.random()*4, c:cols[i%cols.length], life:60+Math.random()*40});
+  }
+}
+function drawConfetti(){
+  fxCtx.clearRect(0,0,W,H);
+  confetti = confetti.filter(p => --p.life > 0);
+  confetti.forEach(p => {
+    p.vy += .18; p.vx *= .985; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+    fxCtx.save(); fxCtx.globalAlpha = Math.min(1, p.life/30); fxCtx.translate(p.x,p.y); fxCtx.rotate(p.r);
+    fxCtx.fillStyle = p.c; fxCtx.fillRect(-p.w/2,-p.h/2,p.w,p.h); fxCtx.restore();
+  });
+  requestAnimationFrame(drawConfetti);
+}
+requestAnimationFrame(drawConfetti);
+function announce(glyph, title, line, color, confettiCols){
+  const el = $("announce");
+  el.hidden = false; el.classList.remove("go"); void el.offsetWidth;
+  el.innerHTML = "";
+  const g = document.createElement("div"); g.className = "ag"; g.textContent = glyph; g.style.color = color;
+  const n = document.createElement("div"); n.className = "an"; n.textContent = title;
+  const w = document.createElement("div"); w.className = "aw"; w.textContent = line;
+  el.append(g, n, w); el.classList.add("go");
+  clearTimeout(announce.t); announce.t = setTimeout(() => { el.hidden = true; }, 2100);
+  burst(confettiCols || [color, "#ffc23d", "#ff7ac8", "#4fe0b0", "#4cb4ff"]);
+}
+const discoColor = (t, i) => `hsl(${(t*17 + i*97) % 360} 95% 62%)`;
+const pColor = (p, t) => (p[9] & 32) ? discoColor(t, p[2]) : COLORS[p[2]];
+const toasts = [];
+function toast(text, col){
+  toasts.push({text, col, until: performance.now()+2600});
+  if(toasts.length>4) toasts.shift();
+  renderToasts();
+}
+function renderToasts(){
+  const now = performance.now();
+  while(toasts.length && toasts[0].until < now) toasts.shift();
+  const box = $("toasts"); box.textContent = "";
+  toasts.forEach(t => { const d = document.createElement("div"); d.className="toast"; d.style.borderLeftColor=t.col; d.textContent=t.text; box.appendChild(d); });
+}
+setInterval(renderToasts, 500);
+
+function blastCanvas(x, y, r){
+  trailCtx.save(); trailCtx.globalCompositeOperation = "destination-out";
+  trailCtx.beginPath(); trailCtx.arc(x,y,r,0,7); trailCtx.fill();
+  if(x-r<0||x+r>W||y-r<0||y+r>H) for(const [ox,oy] of [[W,0],[-W,0],[0,H],[0,-H]]){ trailCtx.beginPath(); trailCtx.arc(x+ox,y+oy,r,0,7); trailCtx.fill(); }
+  trailCtx.restore();
+}
+let bounceBudget = 4; setInterval(() => { bounceBudget = 4; }, 1000);
+function apply(snap){
+  if(!snap) return;
+  const prev = S;
+  if(snap.r !== lastRound){ trailCtx.clearRect(0,0,W,H); last = {}; lastRound = snap.r; lastCl = snap.cl; }
+  if(snap.cl !== lastCl){ trailCtx.clearRect(0,0,W,H); lastCl = snap.cl; }
+  if(snap.ph==="play" || snap.ph==="over"){
+    trailCtx.lineCap="round";
+    snap.pl.forEach(p => {
+      const [k,,,,x,y,alive,gap,,fx] = p, l = last[k];
+      if(l && !gap && !l.gap && l.alive && Math.abs(x-l.x)<40 && Math.abs(y-l.y)<40){
+        trailCtx.lineWidth = (fx & 8) ? R*4 : (fx & 128) ? R*1.1 : R*2;
+        trailCtx.globalAlpha = ((fx & 2048) && k!==myKey()) ? .07 : ((fx & 2048) ? .45 : 1);
+        trailCtx.strokeStyle = pColor(p, snap.t);
+        trailCtx.beginPath(); trailCtx.moveTo(l.x,l.y); trailCtx.lineTo(x,y); trailCtx.stroke();
+        trailCtx.globalAlpha = 1;
+      }
+      last[k] = {x,y,gap,alive};
+    });
+  } else snap.pl.forEach(([k,,,,x,y,alive,gap]) => last[k] = {x,y,gap,alive});
+  // gum: ballen wissen wat ze raken (tussen vorige en huidige positie)
+  if(snap.blGum && (snap.ph==="play" || snap.ph==="over")){
+    trailCtx.save(); trailCtx.globalCompositeOperation = "destination-out"; trailCtx.lineCap = "round";
+    const pb = prev && prev.r===snap.r ? prev.bl||[] : [];
+    (snap.bl||[]).forEach((b,i) => {
+      const q = pb[i] || b;
+      trailCtx.lineWidth = b[2]*2 + 1;
+      trailCtx.beginPath(); trailCtx.moveTo(q[0],q[1]); trailCtx.lineTo(b[0],b[1]); trailCtx.stroke();
+      trailCtx.beginPath(); trailCtx.arc(b[0],b[1],b[2]+.5,0,7); trailCtx.fill();
+    });
+    trailCtx.restore();
+  }
+
+  // gebeurtenissen: geluid en meldingen
+  const me = myKey();
+  (snap.ev||[]).forEach(e => {
+    const p = snap.pl[e.i];
+    if(e.k==="p" && p && PT[e.ty]){
+      const t = PT[e.ty], who = p[0]===me ? "Jij" : p[1];
+      toast(`${who} pakt ${t.n} → ${TG_TXT[e.tg]}`, TG_COL[e.tg]);
+      const forMe = e.tg===2 || (e.tg===0 && p[0]===me) || (e.tg===1 && p[0]!==me);
+      announce(t.g, t.n + "!", `${who} → ${e.tg===0 ? (p[0]===me ? "jezelf" : "zichzelf") : TG_TXT[e.tg]}${forMe && e.tg!==2 && t.bit ? " · dat ben jij!" : ""}`, t.c);
+      sfx.fanfare();
+      (TSFX[t.id] || (()=>{}))();
+      if(e.tg===1 && p[0]===me) sfx.zap();
+    } else if(e.k==="g" && p){ toast(`${p[0]===me ? "Jij glipt" : p[1]+" glipt"} als spook door een slang`, "#9fd8ff"); sfx.ghost(); }
+    else if(e.k==="ob") sfx.thud();
+    else if(e.k==="pm") tone(1200,.08,"sine",.04,600);
+    else if(e.k==="bb"){ if(bounceBudget > 0){ bounceBudget--; sfx.boing(e.r); } }
+    else if(e.k==="bh" && p){ toast(`${p[0]===me ? "Jij wordt" : p[1]+" wordt"} geraakt door een bal`, "#ff9ec4"); tone(500,.2,"square",.08,150); }
+    else if(e.k==="m" && p){
+      blastCanvas(e.x, e.y, e.r); sfx.boom();
+      const who = p[0]===me ? "Jij" : p[1];
+      toast(`${who} rijdt op een mijn!`, "#ff5d6c");
+      announce("✱", "BOEM!", `${who} reed op een mijn`, "#ff5d6c", ["#ff5d6c","#ff9a5c","#ffc23d","#3a3e5c"]);
+    }
+    else if(e.k==="b"){ blastCanvas(e.x, e.y, e.r); noise(.5,1800,80,.3); tone(70,.4,"sine",.2,35); }
+  });
+  if(prev && prev.r===snap.r){
+    if(snap.ph==="cd" && snap.cd!==prev.cd) sfx.count(snap.cd);
+    if(snap.ph==="play" && prev.ph==="cd") sfx.start();
+    snap.pl.forEach((p,i) => { const q = prev.pl[i]; if(q && q[6] && !p[6]){ sfx.crash(); if(p[0]===me) sfx.sad(); } });
+    // eigen effect afgelopen
+    const pm = snap.pl.find(p=>p[0]===me), qm = prev.pl.find(p=>p[0]===me);
+    if(pm && qm && pm[6] && snap.ph==="play" && (qm[9] & ~pm[9] & ~16)) sfx.fxEnd();
+    // mijn scherp
+    (snap.mn||[]).forEach(m => { if(m[3]===30 && !snap.mnHid) sfx.armed(); });
+    if(snap.ph==="final" && prev.ph!=="final") sfx.bigwin();
+    if(snap.ph==="over" && prev.ph!=="over"){ const w = snap.pl[snap.w]; if(w) sfx.win(w[0]===me); }
+  } else if(prev && snap.ph==="cd") sfx.count(snap.cd);
+  S = snap;
+  renderUI();
+}
+
+function drawHeads(){
+  headCtx.clearRect(0,0,W,H);
+  if(S){
+    const now = performance.now();
+    const mine = S.pl.find(p=>p[0]===myKey());
+    const inGrass = !!(mine && mine[6] && (mine[9] & 65536) && S.ph==="play");
+    if(inGrass){ headCtx.globalAlpha = .94; headCtx.drawImage(grassCanvas,0,0); headCtx.globalAlpha = 1; }
+    // obstakels
+    (S.ob||[]).forEach(([x,y,w,h,st]) => {
+      if(st===2){
+        headCtx.fillStyle = "#3a3e5c"; headCtx.fillRect(x,y,w,h);
+        headCtx.strokeStyle = "#8d8fab"; headCtx.lineWidth = 2; headCtx.setLineDash([]);
+        headCtx.strokeRect(x+1,y+1,w-2,h-2);
+        headCtx.save(); headCtx.beginPath(); headCtx.rect(x,y,w,h); headCtx.clip();
+        headCtx.strokeStyle = "#ffc23d55"; headCtx.lineWidth = 3;
+        for(let d=-h; d<w; d+=12){ headCtx.beginPath(); headCtx.moveTo(x+d,y+h); headCtx.lineTo(x+d+h,y); headCtx.stroke(); }
+        headCtx.restore();
+      } else if(st===1 && Math.floor(now/180)%2===0){
+        headCtx.strokeStyle = "#ffc23d"; headCtx.lineWidth = 2; headCtx.setLineDash([6,5]);
+        headCtx.strokeRect(x+1,y+1,w-2,h-2); headCtx.setLineDash([]);
+      }
+    });
+    // mijnen
+    (S.mn||[]).forEach(([x,y,armed,age]) => {
+      const fade = S.mnHid && armed ? Math.max(.07, 1 - (age-60)/30) : 1;
+      headCtx.globalAlpha = armed ? fade : .5 + .5*Math.sin(now/60);
+      headCtx.fillStyle = "#2a2c3c"; headCtx.strokeStyle = "#ff5d6c"; headCtx.lineWidth = 2;
+      for(let k=0;k<8;k++){ const a = k*Math.PI/4; headCtx.beginPath(); headCtx.moveTo(x+Math.cos(a)*6,y+Math.sin(a)*6); headCtx.lineTo(x+Math.cos(a)*10,y+Math.sin(a)*10); headCtx.stroke(); }
+      headCtx.beginPath(); headCtx.arc(x,y,7,0,7); headCtx.fill(); headCtx.stroke();
+      headCtx.fillStyle = Math.floor(now/300)%2 ? "#ff5d6c" : "#5a1d24";
+      headCtx.beginPath(); headCtx.arc(x,y,2.4,0,7); headCtx.fill();
+      headCtx.globalAlpha = 1;
+    });
+    // pellets
+    (S.pe||[]).forEach(([x,y,ty,tg]) => {
+      if(ty<0){
+        const pulse = 1 + Math.sin(now/200 + x)*0.12;
+        headCtx.lineWidth = 3; headCtx.strokeStyle = "#f2efe6";
+        headCtx.beginPath(); headCtx.arc(x,y,11*pulse,0,7); headCtx.stroke();
+        headCtx.fillStyle = discoColor(now/40, x); headCtx.beginPath(); headCtx.arc(x,y,8,0,7); headCtx.fill();
+        headCtx.fillStyle = "#0b0c13"; headCtx.font = "bold 12px system-ui,sans-serif";
+        headCtx.textAlign = "center"; headCtx.textBaseline = "middle"; headCtx.fillText("?", x, y+.5);
+        return;
+      }
+      const t = PT[ty]; if(!t) return;
+      const pulse = 1 + Math.sin(now/200 + x)*0.12;
+      headCtx.lineWidth = 3; headCtx.strokeStyle = TG_COL[tg];
+      headCtx.beginPath(); headCtx.arc(x,y,11*pulse,0,7); headCtx.stroke();
+      headCtx.fillStyle = t.id==="disco" ? discoColor(now/60, 0) : t.c;
+      headCtx.beginPath(); headCtx.arc(x,y,8,0,7); headCtx.fill();
+      headCtx.fillStyle = "#0b0c13"; headCtx.font = "bold 11px system-ui,sans-serif";
+      headCtx.textAlign = "center"; headCtx.textBaseline = "middle";
+      headCtx.fillText(t.g, x, y+.5);
+    });
+    // stuiterballen
+    (S.bl||[]).forEach(([x,y,r]) => {
+      const g = headCtx.createRadialGradient(x-r*.35, y-r*.35, r*.1, x, y, r);
+      if(S.blGum){ g.addColorStop(0,"#fff"); g.addColorStop(.45,"#ff9ec4"); g.addColorStop(1,"#c04a7a"); }
+      else { g.addColorStop(0,"#fff"); g.addColorStop(.45,"#9fd8ff"); g.addColorStop(1,"#2f6fb0"); }
+      headCtx.fillStyle = g; headCtx.beginPath(); headCtx.arc(x,y,r,0,7); headCtx.fill();
+      if(S.blKill){ headCtx.strokeStyle = "#ff5d6c"; headCtx.lineWidth = 2; headCtx.beginPath(); headCtx.arc(x,y,r+1.5,0,7); headCtx.stroke(); }
+    });
+    // koppen
+    S.pl.forEach(p => {
+      const [k,,c,,x,y,alive,gap,a,fx] = p;
+      if(inGrass && k!==myKey()) return;
+      const r = (fx & 8) ? R*2 : (fx & 128) ? R*.55 : R;
+      const hidden = (fx & 2048) && alive;
+      headCtx.globalAlpha = !alive ? .35 : hidden ? (k===myKey() ? .5 : .08) : 1;
+      if(alive && (fx & 8192)){ headCtx.strokeStyle = "#bfe9ff"; headCtx.lineWidth = 2; headCtx.beginPath(); headCtx.arc(x,y,r+5,0,7); headCtx.stroke(); }
+      if(alive && (fx & 16)){
+        headCtx.strokeStyle = "#9fd8ff"; headCtx.lineWidth = 2; headCtx.setLineDash([3,3]);
+        headCtx.beginPath(); headCtx.arc(x,y,r+7,0,7); headCtx.stroke(); headCtx.setLineDash([]);
+      }
+      headCtx.fillStyle = pColor(p, now/33);
+      headCtx.beginPath(); headCtx.arc(x,y,r+1.6,0,7); headCtx.fill();
+      headCtx.fillStyle = "#0b0c13";
+      headCtx.beginPath(); headCtx.arc(x+Math.cos(a)*r*.55,y+Math.sin(a)*r*.55,1.3,0,7); headCtx.fill();
+      if(S.ph==="cd"){
+        headCtx.strokeStyle = COLORS[c]; headCtx.lineWidth=2;
+        headCtx.beginPath(); headCtx.moveTo(x+Math.cos(a)*8,y+Math.sin(a)*8); headCtx.lineTo(x+Math.cos(a)*24,y+Math.sin(a)*24); headCtx.stroke();
+        if(k===myKey()){ headCtx.beginPath(); headCtx.arc(x,y,14,0,7); headCtx.stroke(); }
+      }
+    });
+    headCtx.globalAlpha = 1;
+  }
+  requestAnimationFrame(drawHeads);
+}
+requestAnimationFrame(drawHeads);
+
+/* ---------- volledig scherm ---------- */
+const stage = $("stage");
+const isFs = () => document.fullscreenElement === stage || document.webkitFullscreenElement === stage || stage.classList.contains("pseudo-fs");
+function toggleFs(){
+  audio();
+  if(isFs()){
+    if(stage.classList.contains("pseudo-fs")) stage.classList.remove("pseudo-fs");
+    else (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  } else {
+    const req = stage.requestFullscreen || stage.webkitRequestFullscreen;
+    if(req) Promise.resolve(req.call(stage)).catch(() => stage.classList.add("pseudo-fs"));
+    else stage.classList.add("pseudo-fs");
+  }
+  setTimeout(renderUI, 50);
+}
+$("fs").onclick = toggleFs; $("fsexit").onclick = toggleFs;
+addEventListener("keydown", e => {
+  if(e.target.tagName==="INPUT" && e.target.type==="text") return;
+  if(e.key==="f" || e.key==="F"){ e.preventDefault(); toggleFs(); }
+  if(e.key==="Escape" && stage.classList.contains("pseudo-fs")) toggleFs();
+});
+document.addEventListener("fullscreenchange", renderUI);
+
+/* ---------- UI ---------- */
+function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+function renderUI(){
+  const big=$("big"), sub=$("sub");
+  big.textContent=""; sub.hidden=true; big.style.color="var(--fg)";
+  if(S && S.ph==="cd"){ big.textContent = S.cd; }
+  else if(S && S.ph==="over"){
+    const w = S.pl[S.w];
+    big.textContent = w ? w[1] : "Gelijkspel"; big.style.color = w ? COLORS[w[2]] : "var(--fg)";
+    sub.textContent = w ? "overleeft deze ronde!" : (S.pl.length>1 ? "niemand overleefde" : "af!"); sub.hidden=false;
+  } else if(S && S.ph==="final"){
+    const fw = Array.isArray(S.fw) ? S.fw.map(String) : [];
+    if(fw.length===1){
+      const w = S.pl.find(p=>p[1]===fw[0]);
+      big.textContent = fw[0]; big.style.color = w ? COLORS[w[2]] : "var(--accent)";
+      sub.textContent = "wint het spel met " + S.fs + (S.fs===1?" punt":" punten") + "!";
+    } else if(fw.length>1){
+      big.textContent = "Gelijkspel"; sub.textContent = fw.join(" en ") + " eindigen samen op " + S.fs + " punten";
+    } else { big.textContent = "Einde"; sub.textContent = "Niemand heeft een punt gescoord"; }
+    if(isHost()) sub.textContent += " · klik Start spel voor een nieuwe partij";
+    sub.hidden = false;
+  } else if(!S || S.ph==="lobby"){
+    sub.hidden=false;
+    sub.textContent = mode==="offline" ? "Lokaal: speler 1 ← →, speler 2 A D. Druk op Start spel."
+      : mode==="menu" ? "Maak een nieuw spel of vul een code in"
+      : mode==="connecting" ? "Verbinden…"
+      : isHost() ? "Klik Start spel als iedereen er is" : "Wachten tot de host start…";
+  }
+  // mijn actieve effecten
+  const mine = S && S.pl.find(p=>p[0]===myKey());
+  const fxBox = $("myfx"); fxBox.textContent = "";
+  if(mine && mine[6] && S.ph==="play") PT.forEach(t => { if(t.bit && (mine[9] & t.bit)){ const s = document.createElement("span"); s.style.color = t.c; s.textContent = t.g+" "+t.n; fxBox.appendChild(s); } });
+  // spelerslijst
+  let rows;
+  if(S && S.ph!=="lobby") rows = S.pl.map(p=>({n:p[1],c:COLORS[p[2]],s:p[3],dead:!p[6],me:p[0]===myKey()}));
+  else rows = roster().map((r,i)=>({n:r.n,c:COLORS[i%COLORS.length],s:(G&&G.scores[r.k])||0,me:r.k===myKey()}));
+  rows.sort((a,b)=>b.s-a.s);
+  $("fsscores").innerHTML = rows.map(r=>`<li class="${r.dead?"dead":""}"><span class="sw" style="background:${r.c}"></span>${esc(r.n)} <b>${r.s}</b></li>`).join("")
+    + ($("roundinfo").textContent ? `<li style="color:var(--dim)">${esc($("roundinfo").textContent)}</li>` : "");
+  $("players").innerHTML = rows.length ? rows.map(r=>`<li class="${r.dead?"dead":""}"><span class="sw" style="background:${r.c}"></span><span class="nm">${esc(r.n)}${r.me?" (jij)":""}</span><span class="sc">${r.s}</span></li>`).join("")
+    : `<li class="empty">Nog niemand.</li>`;
+  const info = $("settings-info");
+  if(S && S.sp!=null && SPEEDS[S.sp] && !isHost()){
+    info.hidden = false;
+    info.textContent = "Snelheid: " + SPEEDS[S.sp].n + " · gat elke ~" + (+S.ge||0).toFixed(1) + " s · gaten " + gapSizeLabel(+S.gw||19)
+      + " · " + (S.rt ? S.rt + " rondes" : "oneindig") + " · " + (S.wrap===false ? "dichte rand" : "schermwrap") + " · obstakels " + (S.obOn?"aan":"uit") + " · pellets " + (S.peOn?"aan":"uit") + " · mijnen " + (S.mnOn?"aan":"uit") + " · ballen " + (S.blOn ? (S.blGum ? "aan (gum)" : "aan") : "uit");
+  } else info.hidden = true;
+  const peShown = S ? S.peOn : (isHost() && OPT.pe), mnShown = S ? S.mnOn : (isHost() && OPT.mines);
+  $("legendbox").hidden = !(peShown || mnShown || (S ? S.blOn : (isHost() && OPT.balls)));
+  $("legend").hidden = !peShown; $("legendbox").querySelector(".rings").hidden = !peShown;
+  $("minelegend").hidden = !mnShown;
+  const blShown = S ? S.blOn : (isHost() && OPT.balls);
+  $("balllegend").hidden = !blShown;
+  const bg = S ? S.blGum : OPT.blGum, bk = S ? S.blKill : OPT.blKill;
+  $("balltext").innerHTML = "<b>Stuiterbal</b> · " + (bg ? "wist sporen" : "stuitert rond") + (bk ? ", dodelijk" : ", ongevaarlijk");
+  if(isHost()) renderPills();
+  $("hostbox").hidden = !isHost();
+  $("arena").classList.toggle("walls", S ? S.wrap===false : (isHost() && !OPT.wrap));
+  $("menu").hidden = mode!=="menu";
+  $("codebox").hidden = !(mode==="host"||mode==="client"||mode==="offline");
+  $("gcode").textContent = mode==="offline" ? "LOKAAL" : gameCode;
+  $("copy").hidden = $("codehint").hidden = mode!=="host";
+  $("roundinfo").textContent = S && S.rn && S.ph!=="lobby" ? (S.rt ? `Ronde ${Math.min(S.rn,S.rt)} van ${S.rt}` : `Ronde ${S.rn} · oneindig`) : "";
+  const inGame = G && G.ph!=="lobby" && G.ph!=="final";
+  $("start").hidden = !!inGame; $("stop").hidden = !inGame;
+  $("start").disabled = roster().length < 1;
+}
+
+/* ---------- netwerk (PeerJS, peer-to-peer) ---------- */
+// mode: menu | connecting | host | client | offline
+let mode = "menu", peer = null, hostConn = null, gameCode = "";
+const clients = new Map();   // host: peerId -> {conn, n, turn}
+const PREFIX = "kronkels-nl-";
+const myKey = () => mode==="offline" ? "local1" : mode==="host" ? "host" : (peer ? peer.id : null);
+function roster(){
+  if(mode==="offline") return [{k:"local1",n:myName||"Speler 1"},{k:"local2",n:"Speler 2"}];
+  if(mode==="host") return [{k:"host",n:myName}, ...[...clients].filter(([,c])=>c.n).map(([k,c])=>({k,n:c.n}))];
+  if(mode==="client" && S && Array.isArray(S.lb)) return S.lb.map(([k,n])=>({k,n:String(n).slice(0,12)}));
+  return [];
+}
+const isHost = () => mode==="host" || mode==="offline";
+function sendInput(){ if(mode==="client" && hostConn && hostConn.open) hostConn.send({t:"in", turn:myTurn()}); }
+function setStatus(t){ $("status").textContent = t; }
+function readName(){
+  myName = ($("name").value||"").trim().slice(0,12) || "Slang";
+  try{ localStorage.setItem("kronkels-name", myName); }catch(e){}
+  $("name").value = myName;
+}
+function makeCode(){ const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let c=""; for(let i=0;i<5;i++) c+=a[Math.random()*a.length|0]; return c; }
+function noPeerJS(){ if(window.Peer) return false; setStatus("Kan de verbindingsbibliotheek niet laden. Heb je internet?"); return true; }
+const KEYS_ONLINE = $("keys").innerHTML;
+function reset(msg){
+  try{ peer && peer.destroy(); }catch(e){}
+  peer = null; hostConn = null; clients.clear(); G = null; S = null; gameCode = "";
+  trailCtx.clearRect(0,0,W,H); mode = "menu"; setStatus(msg || "Niet verbonden");
+  $("keys").innerHTML = KEYS_ONLINE; renderUI();
+}
+
+$("name").onchange = () => { readName(); if(mode==="client" && hostConn && hostConn.open) hostConn.send({t:"hello", n:myName}); renderUI(); };
+
+$("create").onclick = () => {
+  audio(); readName(); if(noPeerJS()) return;
+  mode = "connecting"; renderUI(); setStatus("Spel aanmaken…");
+  const tryCode = (left) => {
+    gameCode = makeCode();
+    peer = new Peer(PREFIX + gameCode);
+    peer.on("open", () => { mode = "host"; newGame(); sfx.join(); setStatus("Online — jij bent de host"); renderUI(); });
+    peer.on("connection", conn => {
+      conn.on("open", () => clients.set(conn.peer, {conn, n:"", turn:0}));
+      conn.on("data", d => {
+        const c = clients.get(conn.peer); if(!c || !d || typeof d!=="object") return;
+        if(d.t==="hello" && typeof d.n==="string"){ const fresh = !c.n; c.n = d.n.slice(0,12) || "Slang"; if(fresh) sfx.join(); renderUI(); }
+        else if(d.t==="in"){ const v = +d.turn; c.turn = v<0?-1:v>0?1:0; }
+      });
+      const gone = () => { clients.delete(conn.peer); renderUI(); };
+      conn.on("close", gone); conn.on("error", gone);
+    });
+    peer.on("error", e => {
+      if(e.type==="unavailable-id" && left>0){ try{ peer.destroy(); }catch(_){} tryCode(left-1); }
+      else if(mode!=="host") reset("Kon geen spel maken (" + e.type + ")");
+    });
+    peer.on("disconnected", () => { if(mode==="host"){ setStatus("Verbinding met de koppeldienst kwijt, opnieuw…"); try{ peer.reconnect(); }catch(_){} } });
+  };
+  tryCode(3);
+};
+
+$("join").onclick = () => {
+  audio(); readName(); if(noPeerJS()) return;
+  const code = ($("code").value||"").trim().toUpperCase();
+  if(code.length<4){ setStatus("Vul eerst de code van de host in"); $("code").focus(); return; }
+  gameCode = code; mode = "connecting"; renderUI(); setStatus("Verbinden met " + code + "…");
+  peer = new Peer();
+  peer.on("open", () => {
+    hostConn = peer.connect(PREFIX + code, {reliable:true});
+    const timer = setTimeout(() => { if(mode==="connecting") reset("Geen antwoord op code " + code + ". Klopt de code en is de host nog online?"); }, 15000);
+    hostConn.on("open", () => {
+      clearTimeout(timer); mode = "client"; sfx.join();
+      hostConn.send({t:"hello", n:myName});
+      setStatus("Verbonden met spel " + code); renderUI();
+    });
+    hostConn.on("data", d => { if(d && typeof d==="object" && Array.isArray(d.pl)){ if(d.ph==="lobby" && S && S.ph!=="lobby") trailCtx.clearRect(0,0,W,H); apply(d); } });
+    hostConn.on("close", () => reset("De host heeft het spel verlaten"));
+  });
+  peer.on("error", e => reset(e.type==="peer-unavailable" ? "Geen spel gevonden met code " + code : "Verbinden mislukt (" + e.type + ")"));
+};
+$("code").addEventListener("keydown", e => { if(e.key==="Enter") $("join").click(); });
+
+$("local").onclick = () => {
+  audio(); readName(); mode = "offline"; newGame();
+  setStatus("Lokaal spel: met z'n tweeën op één toetsenbord");
+  $("keys").innerHTML = "Speler 1: <kbd>←</kbd> <kbd>→</kbd> · Speler 2: <kbd>A</kbd> <kbd>D</kbd>. Kop tegen een slang of obstakel is af. Met schermwrap kom je aan de overkant weer binnen, zonder schermwrap is de rand dodelijk.";
+  renderUI();
+};
+$("leave").onclick = () => reset();
+$("copy").onclick = () => {
+  const done = () => { $("copy").textContent = "Gekopieerd"; setTimeout(()=>$("copy").textContent="Kopieer code",1500); };
+  if(navigator.clipboard) navigator.clipboard.writeText(gameCode).then(done, ()=>{});
+};
+$("start").onclick = () => { audio(); newMatch(); };
+$("stop").onclick = () => { if(G){ G.ph="lobby"; G.pl=[]; G.ob=[]; G.pe=[]; G.mn=[]; G.bl=[]; } };
+$("reset").onclick = () => { if(G) G.scores = {}; renderUI(); };
+$("pe").addEventListener("change", renderUI); $("wrap").addEventListener("change", renderUI); $("mn").addEventListener("change", renderUI); ["bl","blgum","blkill"].forEach(id => $(id).addEventListener("change", renderUI));
+
+// hostlus
+setInterval(() => {
+  if(!isHost() || !G) return;
+  const inputs = {};
+  if(mode==="offline"){ inputs.local1 = myTurn(); inputs.local2 = p2Turn(); }
+  else { inputs.host = myTurn(); clients.forEach((c,k) => { if(c.n) inputs[k] = c.turn; }); }
+  step(inputs);
+  const snap = snapshot();
+  apply(snap);
+  if(mode==="host") clients.forEach(c => { if(c.conn.open) try{ c.conn.send(snap); }catch(e){} });
+}, 1000/TPS);
+
+renderPills();
+const hc = (location.hash||"").replace("#","").toUpperCase();
+if(/^[A-Z0-9]{5}$/.test(hc)) $("code").value = hc;
+renderUI();
+
+})();
+</script>
+</body>
+</html>
